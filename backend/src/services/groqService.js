@@ -1,9 +1,11 @@
 import axios from "axios";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MODEL = "llama-3.1-8b-instant"; 
-// If you want higher reasoning quality, switch to:
-// const MODEL = "llama-3.1-70b-versatile";
+const MODEL = "llama-3.1-8b-instant";
+
+// =======================================================
+// 🔵 STRUCTURED TRANSFORM PIPELINE (FOR /transform)
+// =======================================================
 
 export async function runGroqPipeline(content) {
 
@@ -62,8 +64,6 @@ Rules:
       throw new Error("Empty response from Groq");
     }
 
-    // ================= ROBUST SECTION EXTRACTION =================
-
     const extract = (start, end) => {
       const regex = new RegExp(
         `${start}([\\s\\S]*?)${end ? end : "$"}`,
@@ -81,8 +81,6 @@ Rules:
       study_plan: extract("---STUDY_PLAN---", null)
     };
 
-    // ================= FORMAT VALIDATION =================
-
     const allEmpty = Object.values(sections).every(
       (section) => !section || section.length < 20
     );
@@ -97,5 +95,46 @@ Rules:
   } catch (error) {
     console.error("GROQ FULL ERROR:", error.response?.data || error.message);
     throw new Error("AI processing failed");
+  }
+}
+
+
+// =======================================================
+// 🟢 SIMPLE GENERATION (FOR /quiz, /agent, etc.)
+// =======================================================
+
+export async function runGroqSimple(prompt) {
+
+  try {
+    const response = await axios.post(
+      GROQ_URL,
+      {
+        model: MODEL,
+        messages: [
+          { role: "system", content: "You are a helpful educational assistant." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.6,
+        max_tokens: 800
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`
+        }
+      }
+    );
+
+    const text = response.data.choices?.[0]?.message?.content?.trim();
+
+    if (!text) {
+      throw new Error("Empty response from Groq");
+    }
+
+    return text;
+
+  } catch (error) {
+    console.error("GROQ SIMPLE ERROR:", error.response?.data || error.message);
+    throw new Error("AI simple generation failed");
   }
 }

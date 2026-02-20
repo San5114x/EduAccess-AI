@@ -14,45 +14,35 @@ export default function ADHDMode({ data }) {
   const [attention, setAttention] = useState(100);
   const [points, setPoints] = useState(50);
   const [quiz, setQuiz] = useState(null);
-  const [warning, setWarning] = useState(false);
-  const [answered, setAnswered] = useState(false);
+  const [loadingQuiz, setLoadingQuiz] = useState(false);
 
-  // ================= SMART ADHD QUIZ =================
+  // ================= QUIZ GENERATION =================
   const triggerQuiz = async () => {
+    if (!data || data.trim() === "") return;
+
+    setLoadingQuiz(true);
+
     try {
-      const smartPrompt = `
-Generate a very short ADHD-friendly focus check from this content.
-
-Include:
-1. One sentence recall question.
-2. One keyword identification question.
-3. One True/False question.
-
-Rules:
-- Keep each question under 15 words.
-- Very simple language.
-- Format clearly as bullet points.
-
-Content:
-${data}
-`;
-
-      const q = await generateQuiz(smartPrompt);
+      const response = await generateQuiz(data);
 
       const result =
-        q?.question ||
-        q?.result?.question ||
-        q?.result ||
-        q;
+        response?.question ||
+        response?.result?.question ||
+        response?.result ||
+        response;
 
       if (result) {
         setQuiz(result);
-        setAnswered(false);
+      } else {
+        setQuiz("Unable to generate quiz.");
       }
 
     } catch (err) {
-      console.error("Quiz error:", err);
+      console.error("Quiz API failed:", err);
+      setQuiz("Quiz generation failed.");
     }
+
+    setLoadingQuiz(false);
   };
 
   // ================= FACE TRACKING =================
@@ -87,10 +77,7 @@ ${data}
         const rightEye = landmarks[263];
 
         const eyeCenterX = (leftEye.x + rightEye.x) / 2;
-
-        const faceCentered =
-          eyeCenterX > 0.4 &&
-          eyeCenterX < 0.6;
+        const faceCentered = eyeCenterX > 0.4 && eyeCenterX < 0.6;
 
         if (faceCentered) {
           setAttention(a => Math.min(100, a + 1));
@@ -102,7 +89,7 @@ ${data}
 
       cameraRef.current = new Camera(videoRef.current, {
         onFrame: async () => {
-          if (videoRef.current.readyState === 4) {
+          if (videoRef.current && videoRef.current.readyState === 4) {
             await faceMesh.send({ image: videoRef.current });
           }
         },
@@ -126,12 +113,10 @@ ${data}
 
   }, [tracking]);
 
-  // ================= WARNING + QUIZ =================
+  // ================= QUIZ TRIGGER =================
   useEffect(() => {
+    if (attention < 40 && !quizCooldownRef.current && data) {
 
-    if (attention < 40 && !quizCooldownRef.current) {
-
-      setWarning(true);
       triggerQuiz();
 
       quizCooldownRef.current = true;
@@ -139,24 +124,54 @@ ${data}
       setTimeout(() => {
         quizCooldownRef.current = false;
       }, 20000);
-
-    } else if (attention >= 40) {
-      setWarning(false);
     }
 
-  }, [attention]);
+  }, [attention, data]);
 
-  const handleQuizComplete = () => {
-    if (!answered) {
-      setPoints(p => Math.min(100, p + 5));
-      setAttention(a => Math.min(100, a + 10));
-      setAnswered(true);
-    }
+  // ================= OPTION CLICK =================
+  const handleOptionClick = () => {
+    setPoints(p => Math.min(100, p + 5));
+    setAttention(a => Math.min(100, a + 10));
+    setQuiz(null);
   };
 
   const handleFocusBoost = () => {
     setAttention(a => Math.min(100, a + 15));
     setPoints(p => Math.min(100, p + 10));
+  };
+
+  // ================= QUIZ PARSER =================
+  const renderQuiz = () => {
+    if (!quiz) return null;
+
+    // Split into blocks by numbered questions
+    const questionBlocks = quiz.split(/\n(?=\d+\.)/);
+
+    return questionBlocks.map((block, i) => {
+      const lines = block.split("\n").filter(Boolean);
+      if (lines.length < 2) return null;
+
+      const question = lines[0];
+      const options = lines.slice(1);
+
+      return (
+        <div key={i} className="mb-6">
+          <p className="font-medium mb-3">{question}</p>
+
+          <div className="space-y-2">
+            {options.map((opt, index) => (
+              <button
+                key={index}
+                onClick={handleOptionClick}
+                className="w-full text-left p-2 rounded-lg bg-white border hover:bg-green-100 transition"
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    });
   };
 
   // ================= UI =================
@@ -186,6 +201,7 @@ ${data}
         />
       )}
 
+      {/* Attention Bar */}
       <div>
         <p className="font-medium mb-2">
           Attention Level: {attention}/100
@@ -199,12 +215,6 @@ ${data}
             style={{ width: `${attention}%` }}
           />
         </div>
-
-        {warning && (
-          <p className="text-red-600 mt-2 text-sm font-medium">
-            ⚠ Focus low — Smart Quiz Activated!
-          </p>
-        )}
       </div>
 
       <p className="text-green-600 font-semibold">
@@ -218,33 +228,33 @@ ${data}
         Boost Focus
       </button>
 
-      {quiz && (
-        <div className="bg-yellow-50 p-5 rounded-xl border border-yellow-300">
-          <h3 className="font-semibold mb-3">
-            📝 Smart Focus Check
-          </h3>
+      {/* Study Content */}
+      <div className="mt-6 p-6 bg-white rounded-xl border shadow-sm">
+        <h3 className="font-semibold mb-3 text-lg">
+          📚 Study Content
+        </h3>
 
-          <div className="whitespace-pre-wrap text-sm mb-4">
-            {quiz}
-          </div>
+        <div className="whitespace-pre-wrap text-gray-700 leading-7">
+          {data || "No lesson content available."}
+        </div>
+      </div>
 
-          <button
-            onClick={handleQuizComplete}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg"
-          >
-            I Answered
-          </button>
+      {/* Quiz */}
+      {loadingQuiz && (
+        <div className="text-sm text-gray-500">
+          Generating quiz...
         </div>
       )}
 
-      <div className="text-sm font-medium mt-4">
-        Adaptive Mode: {
-          attention < 25 ? "Ultra Simplified" :
-          attention < 40 ? "Micro Learning" :
-          attention < 60 ? "Highlighted" :
-          "Normal"
-        }
-      </div>
+      {quiz && (
+        <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-300">
+          <h3 className="font-semibold mb-4">
+            📝 Smart Focus Check
+          </h3>
+
+          {renderQuiz()}
+        </div>
+      )}
 
     </div>
   );

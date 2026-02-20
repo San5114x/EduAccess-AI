@@ -1,67 +1,37 @@
 import express from "express";
-import axios from "axios";
+import { runGroqSimple } from "../services/groqService.js";
 
 const router = express.Router();
 
-/* ================= ATTENTION QUIZ ROUTE ================= */
-
-router.post("/attention", async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const { content } = req.body;
 
-    if (!content) {
-      return res.status(400).json({ error: "Content required" });
+    if (!content || content.trim() === "") {
+      return res.status(400).json({ error: "No content provided" });
     }
 
     const prompt = `
-Create ONE short multiple-choice focus recovery question from this content.
+Create a short ADHD focus check.
 
-Rules:
-- 1 question only
-- 4 options
-- Return ONLY valid JSON
-Format:
-{
-  "q": "question",
-  "options": ["A", "B", "C", "D"],
-  "correctIndex": 0
-}
+Include:
+• One recall question
+• One keyword question
+• One true/false question
+
+Keep everything simple and under 15 words.
 
 Content:
-${content.slice(0, 2000)}
+${content}
 `;
 
-    const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: "llama-3.1-8b-instant",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.6,
-        max_tokens: 300
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`
-        }
-      }
-    );
+    const result = await runGroqSimple(prompt);
 
-    const raw = response.data.choices[0].message.content;
-
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      console.error("Quiz JSON parse failed:", raw);
-      return res.status(500).json({ error: "Quiz format invalid" });
-    }
-
-    res.json(parsed);
+    res.json({ question: result });
 
   } catch (error) {
-    console.error("Groq Quiz Error:", error.response?.data || error.message);
-    res.status(500).json({ error: "AI quiz generation failed" });
+    console.error("QUIZ ROUTE ERROR:", error);
+    res.status(500).json({ error: "Quiz generation failed" });
   }
 });
 
