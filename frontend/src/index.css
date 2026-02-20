@@ -1,0 +1,49 @@
+/* ================= TAILWIND (MUST BE FIRST) ================= */
+@import "tailwindcss";
+
+/* ================= OPEN DYSLEXIC LOCAL FONT ================= */
+
+@font-face {
+  font-family: "OpenDyslexic";
+  src: url("./assets/fonts/OpenDyslexic-Regular.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "OpenDyslexic";
+  src: url("./assets/fonts/OpenDyslexic-Bold.otf") format("opentype");
+  font-weight: bold;
+  font-style: normal;
+}
+
+/* ================= ANIMATIONS ================= */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* ================= DYSLEXIA MODE ================= */
+
+.dyslexic-text {
+  font-family: "OpenDyslexic" !important;
+  letter-spacing: 0.06em;
+  line-height: 2.4;
+  font-size: 22px;
+  color: #1e293b;
+}
+
+/* Optional hover polish */
+.bg-yellow-50 {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bg-yellow-50:hover {
+  transform: scale(1.01);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
