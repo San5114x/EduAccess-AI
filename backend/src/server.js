@@ -1,4 +1,6 @@
 import express from "express";
+import geminiRoutes from "./routes/geminiRoutes.js";
+import anthropicRoutes from "./routes/anthropicRoutes.js";
 import cors from "cors";
 import dotenv from "dotenv";
 import transformRoute from "./routes/transform.js";
@@ -16,7 +18,8 @@ app.use("/api/agent", agentRoute);
 
 app.use("/api/transform", transformRoute);
 app.use("/api/quiz", quizRoutes);
-
+app.use("/api/gemini", geminiRoutes);
+app.use("/api/agent", agentRoute);
 app.get("/", (req, res) => {
   res.json({ message: "EduAccess AI Backend Running 🚀" });
 });
